@@ -117,9 +117,70 @@ def detect_code_blocks(md_content: str) -> str:
 
     # 领域关键词 → 语言标签
     domain_keywords = {
-        'abap': [r'\bABAP\b', r'\bSAP\b', r'BAPI(?:[\\_]|[_\b])', r'RFC(?:[\\_]|[_\b])', r'\bS/4HANA\b', r'\bECC\b',
-                 r'\bME[0-9]', r'\bVA[0-9]', r'\bVF[0-9]', r'\bMIGO\b', r'\bSE[0-9]',
-                 r'\b采购信息记录\b', r'\b采购订单\b', r'\b采购发票\b', r'\b物料凭证\b'],
+        'abap': [
+            # ===== 核心技术关键词 =====
+            r'\bABAP\b', r'\bSAP\b', r'\bS/4HANA\b', r'\bECC\b', r'\bR/3\b',
+            r'BAPI(?:[\\_]|[_\b])', r'RFC(?:[\\_]|[_\b])', r'\bIDoc\b', r'\bALE\b',
+            r'\bBAdI\b', r'\bBADI\b', r'\bUser\s*Exit\b', r'\bEnhancement\b',
+            r'\bBAPI_TRANSACTION\b', r'\bCALL\s+FUNCTION\b', r'\bRFC_CALL\b',
+            r'\bFiori\b', r'\bOData\b', r'\bCDS\s*View\b', r'\bAMDP\b',
+            r'\bBOPF\b', r'\bRAP\b', r'\bCAP\b',
+            # ===== MM 物料管理 =====
+            r'\bME[0-9]', r'\bME5[0-9]', r'\bMIGO\b', r'\bMIRO\b', r'\bMIR7\b',
+            r'\bMB0[0-9]', r'\bMB5[0-9]', r'\bMM0[0-9]', r'\bMMBE\b', r'\bMM60\b',
+            r'\bMK0[0-9]', r'\bXK0[0-9]',
+            r'\b采购信息记录\b', r'\b采购订单\b', r'\b采购申请\b', r'\b采购发票\b',
+            r'\b物料凭证\b', r'\b物料主数据\b', r'\b供应商主数据\b', r'\b收货\b', r'\b发货\b',
+            r'\bBAPI_PO_CREATE\b', r'\bBAPI_GOODSMVT_CREATE\b', r'\bBAPI_MATERIAL_SAVEDATA\b',
+            r'\bBAPI_REQUISITION_CREATE\b', r'\bBAPI_REQUISITION_CHANGE\b', r'\bBAPI_REQUISITION_RELEASE\b',
+            r'\bBAPI_INCOMINGINVOICE\b', r'\bME_INFORECORD\b',
+            # ===== SD 销售与分销 =====
+            r'\bVA0[0-9]', r'\bVA1[0-9]', r'\bVA2[0-9]',
+            r'\bVF0[0-9]', r'\bVF1[0-9]', r'\bVF2[0-9]',
+            r'\bVL0[0-9]', r'\bVL1[0-9]', r'\bVL2[0-9]',
+            r'\bVK1[0-9]', r'\bXD0[0-9]',
+            r'\b销售订单\b', r'\b交货单\b', r'\b发票\b', r'\b定价\b', r'\b客户主数据\b',
+            r'\bBAPI_SALESORDER\b', r'\bBAPI_BILLINGDOC\b', r'\bBAPI_OUTB_DELIVERY\b',
+            r'\bBAPI_CUSTOMER\b', r'\bSD_SALESDOCUMENT\b',
+            # ===== FI 财务会计 =====
+            r'\bFB0[0-9]', r'\bFB5[0-9]', r'\bF-0[0-9]', r'\bF-1[0-9]', r'\bF-2[0-9]', r'\bF-3[0-9]', r'\bF-4[0-9]',
+            r'\bFK0[0-9]', r'\bFK1[0-9]', r'\bFK2[0-9]', r'\bFK3[0-9]',
+            r'\bFS1[0-9]', r'\bFAGL\b', r'\bFBL1N\b', r'\bFBL5N\b',
+            r'\b会计凭证\b', r'\b总账\b', r'\b科目\b', r'\b过账\b', r'\b清账\b',
+            r'\bBAPI_ACC_DOCUMENT\b', r'\bBAPI_GL\b', r'\bBAPI_AP_ACC\b', r'\bBAPI_AR_ACC\b',
+            r'\bBAPI_COMPANYCODE\b',
+            # ===== CO 管理会计 =====
+            r'\bKS0[0-9]', r'\bKA0[0-9]', r'\bKE5[0-9]', r'\bKB2[0-9]',
+            r'\bCJ20N\b', r'\bCJ0[0-9]',
+            r'\b成本中心\b', r'\b成本要素\b', r'\b利润中心\b', r'\b内部订单\b',
+            r'\bBAPI_COSTCENTER\b', r'\bBAPI_COSTELEMENT\b', r'\bBAPI_INTERNALORDER\b',
+            r'\bBAPI_COSTACTPLN\b',
+            # ===== PP 生产计划 =====
+            r'\bCO0[0-9]', r'\bMD0[0-9]', r'\bMD1[0-9]', r'\bMD2[0-9]',
+            r'\bCS0[0-9]', r'\bCR0[0-9]', r'\bCR1[0-9]',
+            r'\b生产订单\b', r'\bBOM\b', r'\b工作中心\b', r'\b工艺路线\b', r'\bMRP\b',
+            r'\bBAPI_PRODORD\b', r'\bBAPI_MATERIAL_BOM\b',
+            # ===== PM 设备维护 =====
+            r'\bIW2[0-9]', r'\bIW3[0-9]', r'\bIW6[0-9]',
+            r'\b工单\b', r'\b通知单\b', r'\b设备主数据\b',
+            # ===== QM 质量管理 =====
+            r'\bQA0[0-9]', r'\bQA1[0-9]', r'\bQA2[0-9]',
+            r'\b检验批\b', r'\b质量通知\b',
+            # ===== HR 人力资源 =====
+            r'\bPA20\b', r'\bPA30\b', r'\bPA40\b', r'\bPB[0-9]',
+            r'\b信息类型\b', r'\b人事事件\b',
+            # ===== 通用 ABAP 关键字 =====
+            r'\bSELECT\b.*\bFROM\b', r'\bINSERT\b.*\bINTO\b', r'\bUPDATE\b.*\bSET\b',
+            r'\bMODIFY\b', r'\bDELETE\b.*\bFROM\b',
+            r'\bLOOP\s+AT\b', r'\bENDLOOP\b', r'\bREAD\s+TABLE\b',
+            r'\bAPPEND\b', r'\bSORT\b', r'\bDELETE\s+ADJACENT\b',
+            r'\bCLASS\b.*\bDEFINITION\b', r'\bCLASS\b.*\bIMPLEMENTATION\b',
+            r'\bINTERFACE\b', r'\bMETHOD\b', r'\bENDMETHOD\b',
+            r'\bFORM\b', r'\bENDFORM\b', r'\bPERFORM\b',
+            r'\bMODULE\b', r'\bENDMODULE\b', r'\bSCREEN\b',
+            r'\bAT\s+SELECTION-SCREEN\b', r'\bSTART-OF-SELECTION\b', r'\bEND-OF-SELECTION\b',
+            r'\bTOP-OF-PAGE\b', r'\bEND-OF-PAGE\b',
+        ],
         'xml': [r'\bXML\b', r'\bxmlns\b', r'\bWSDL\b', r'\bSOAP\b', r'\bXSD\b', r'\bSchema\b',
                 r'\bwsdl:\b', r'\bsoap:\b', r'\bxs:\b'],
         'json': [r'\bJSON\b', r'\bobject\b', r'\barray\b', r'\bkey-value\b'],
@@ -130,12 +191,75 @@ def detect_code_blocks(md_content: str) -> str:
     # 代码起始模式（按领域）
     code_starters = {
         'abap': [
-            r'^REPORT\s+[zy]', r'^DATA:?\s*$', r'^DATA:\s*\w+', r'^DATA\s+\w+', r'^TYPES:?\s*$',
-            r'^TYPES\s+BEGIN\s+OF', r'^CALL\s+FUNCTION\s+', r'^WRITE:\s*/',
-            r'^WRITE\s+/', r'^PARAMETERS\s*:', r'^SELECT-OPTIONS\s*:',
-            r'^START-OF-SELECTION', r'^END-OF-SELECTION', r'^FORM\s+\w+',
-            r'^MODULE\s+\w+', r'^CLASS\s+\w+\s+DEFINITION',
+            # ===== 程序声明 =====
+            r'^REPORT\s+', r'^FUNCTION-POOL\b', r'^TYPE-POOL\b',
+            # ===== 数据声明 =====
+            r'^DATA:?\s*$', r'^DATA:\s*\w+', r'^DATA\s+\w+',
+            r'^CONSTANTS:?\s*$', r'^CONSTANTS\s+\w+', r'^CONSTANT\s+\w+',
+            r'^TYPES:?\s*$', r'^TYPES\s+BEGIN\s+OF', r'^TYPES\s+\w+',
+            r'^STATICS:?\s*$', r'^STATICS\s+\w+',
+            r'^CLASS-DATA\b', r'^CLASS-METHODS\b', r'^CLASS-EVENTS\b',
+            # ===== 结构体/内表 =====
+            r'^BEGIN\s+OF\b', r'^END\s+OF\b',
+            r'^STANDARD\s+TABLE\b', r'^SORTED\s+TABLE\b', r'^HASHED\s+TABLE\b',
+            # ===== 字段符号与引用 =====
+            r'^FIELD-SYMBOLS\b', r'^FIELD-SYMBOL\b',
+            r'^ASSIGN\b', r'^UNASSIGN\b',
+            # ===== 选择屏幕 =====
+            r'^PARAMETERS\s*:', r'^SELECT-OPTIONS\s*:',
+            r'^SELECTION-SCREEN\b', r'^AT\s+SELECTION-SCREEN\b',
+            r'^INITIALIZATION\b', r'^AT\s+USER-COMMAND\b',
+            # ===== 事件块 =====
+            r'^START-OF-SELECTION\b', r'^END-OF-SELECTION\b',
+            r'^TOP-OF-PAGE\b', r'^END-OF-PAGE\b',
+            r'^AT\s+LINE-SELECTION\b', r'^AT\s+NEW\b', r'^AT\s+END\b',
+            r'^GET\s+\w+', r'^GET\s+LATE\b',
+            # ===== 函数/子程序调用 =====
+            r'^CALL\s+FUNCTION\s+', r'^CALL\s+METHOD\b', r'^CALL\s+SCREEN\b',
+            r'^CALL\s+DIALOG\b', r'^CALL\s+TRANSACTION\b',
+            r'^SUBMIT\b', r'^LEAVE\s+TO\b', r'^LEAVE\s+LIST-PROCESSING\b',
+            # ===== 子程序/方法定义 =====
+            r'^FORM\s+\w+', r'^ENDFORM\b',
+            r'^METHOD\s+\w+', r'^ENDMETHOD\b',
+            r'^MODULE\s+\w+', r'^ENDMODULE\b',
+            r'^CLASS\s+\w+\s+DEFINITION\b', r'^CLASS\s+\w+\s+IMPLEMENTATION\b',
+            r'^INTERFACE\s+\w+', r'^ENDINTERFACE\b',
+            # ===== 数据库操作 =====
+            r'^SELECT\b', r'^INSERT\b', r'^UPDATE\b', r'^MODIFY\b', r'^DELETE\b',
+            r'^OPEN\s+DATASET\b', r'^CLOSE\s+DATASET\b', r'^TRANSFER\b', r'^READ\s+DATASET\b',
+            # ===== 控制流 =====
+            r'^IF\s+', r'^ELSEIF\s+', r'^ELSE\b', r'^ENDIF\b',
+            r'^CASE\s+', r'^WHEN\s+', r'^ENDCASE\b',
+            r'^DO\s+', r'^ENDDO\b', r'^WHILE\s+', r'^ENDWHILE\b',
+            r'^LOOP\s+AT\b', r'^ENDLOOP\b',
+            r'^READ\s+TABLE\b', r'^CHECK\b', r'^EXIT\b', r'^CONTINUE\b', r'^RETURN\b',
+            r'^TRY\b', r'^CATCH\b', r'^CLEANUP\b', r'^ENDTRY\b',
+            # ===== 输出 =====
+            r'^WRITE:\s*/', r'^WRITE\s+/', r'^WRITE\b',
+            r'^NEW-LINE\b', r'^SKIP\b', r'^ULINE\b', r'^POSITION\b',
+            r'^FORMAT\b', r'^HIDE\b',
+            # ===== 内表操作 =====
+            r'^APPEND\b', r'^INSERT\s+TABLE\b', r'^COLLECT\b',
+            r'^SORT\b', r'^DELETE\s+ADJACENT\b', r'^DELETE\s+TABLE\b',
+            r'^MODIFY\s+TABLE\b', r'^CLEAR\b', r'^FREE\b', r'^REFRESH\b',
+            r'^MOVE\b', r'^MOVE-CORRESPONDING\b', r'^CORRESPONDING\b',
+            # ===== 字符串操作 =====
+            r'^CONCATENATE\b', r'^SPLIT\b', r'^CONDENSE\b', r'^TRANSLATE\b',
+            r'^REPLACE\b', r'^FIND\b', r'^SHIFT\b', r'^STRLEN\b',
+            # ===== 异常处理 =====
+            r'^RAISE\b', r'^RAISE\s+EXCEPTION\b', r'^MESSAGE\b',
+            r'^CATCH\s+SYSTEM-EXCEPTIONS\b', r'^ENDCATCH\b',
+            # ===== ALV =====
+            r'^REUSE_ALV\b', r'^CL_SALV\b', r'^CL_GUI_ALV\b',
+            # ===== BAPI 调用 =====
+            r'^BAPI_TRANSACTION_COMMIT\b', r'^BAPI_TRANSACTION_ROLLBACK\b',
+            # ===== 变量命名约定 =====
             r'^lv_?\w+', r'^ls_?\w+', r'^lt_?\w+', r'^gv_?\w+', r'^gs_?\w+', r'^gt_?\w+',
+            r'^rv_?\w+', r'^rs_?\w+', r'^rt_?\w+', r'^cv_?\w+', r'^cs_?\w+', r'^ct_?\w+',
+            r'^ev_?\w+', r'^es_?\w+', r'^et_?\w+', r'^iv_?\w+', r'^is_?\w+', r'^it_?\w+',
+            r'^mv_?\w+', r'^ms_?\w+', r'^mt_?\w+', r'^mo_?\w+',
+            r'^<\w+>',  # 字段符号 <fs_xxx>
+            # ===== 注释与分隔线 =====
             r'^&-{5,}', r'^\*&', r'^\*\s', r'^" ',
         ],
         'xml': [
