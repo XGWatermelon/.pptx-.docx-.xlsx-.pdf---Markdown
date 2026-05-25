@@ -43,12 +43,81 @@ def save_state(state):
     with open(STATE_FILE, "wb") as f:
         pickle.dump(state, f)
 
+def preprocess_docling_md(md_content: str) -> str:
+    """清理 Docling 导出的 markdown 格式干扰（粗体标记、HTML 实体等）"""
+    # 解码 HTML 实体
+    md_content = md_content.replace('&amp;', '&')
+    md_content = md_content.replace('&lt;', '<')
+    md_content = md_content.replace('&gt;', '>')
+    # 去除 Docling 误加的粗体标记（**...** 或 **...*）
+    lines = md_content.split('\n')
+    result = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('**') and len(stripped) > 2:
+            # 去掉开头的 **
+            inner = stripped[2:]
+            # 如果末尾也有 ** 也去掉
+            if inner.endswith('**'):
+                inner = inner[:-2]
+            result.append(inner.strip())
+            continue
+        result.append(line)
+    return '\n'.join(result)
+
+def extract_code_from_table_line(line: str, domain: str) -> tuple:
+    """检查表格行的单元格中是否包含代码，如果有则提取出来。
+    返回 (是否修改, 提取的代码行列表, 修改后的表格行)"""
+    if not line.strip().startswith('|'):
+        return False, [], line
+
+    cells = line.split('|')
+    # 至少需要3个元素（前导空、内容、尾部空）
+    if len(cells) < 3:
+        return False, [], line
+
+    code_markers = {
+        'abap': [
+            r'REPORT\s+z', r'DATA:\s*\w+', r'DATA\s+\w+\s+TYPE',
+            r'TYPES:\s', r'TYPES\s+BEGIN\s+OF', r'CALL\s+FUNCTION',
+            r'^\s*IF\s+', r'^\s*LOOP\s+AT', r'^\s*SELECT\s+', r'^\s*WRITE',
+        ],
+    }
+    patterns = code_markers.get(domain, [])
+    if not patterns:
+        return False, [], line
+
+    extracted_code = []
+    modified = False
+    for i, cell in enumerate(cells):
+        cell_content = cell.strip()
+        if not cell_content:
+            continue
+        # 检查单元格是否包含代码
+        code_count = sum(1 for p in patterns if re.search(p, cell_content, re.IGNORECASE))
+        if code_count >= 2:  # 至少匹配2个代码模式才认为是代码
+            # 按两个以上连续空格分割，提取代码行
+            code_lines = re.split(r'\s{2,}', cell_content)
+            code_lines = [cl.strip() for cl in code_lines if cl.strip()]
+            if len(code_lines) >= 3:  # 至少3行才认为是代码块
+                extracted_code.extend(code_lines)
+                cells[i] = ''  # 清空单元格
+                modified = True
+
+    if modified:
+        new_line = '|'.join(cells)
+        return True, extracted_code, new_line
+    return False, [], line
+
 def detect_code_blocks(md_content: str) -> str:
     """扫描段落关键词，驱动代码块语言标签"""
 
+    # 先清理 Docling 格式干扰
+    md_content = preprocess_docling_md(md_content)
+
     # 领域关键词 → 语言标签
     domain_keywords = {
-        'abap': [r'\bABAP\b', r'\bSAP\b', r'BAPI(?:[_\b])', r'RFC(?:[_\b])', r'\bS/4HANA\b', r'\bECC\b',
+        'abap': [r'\bABAP\b', r'\bSAP\b', r'BAPI(?:[\\_]|[_\b])', r'RFC(?:[\\_]|[_\b])', r'\bS/4HANA\b', r'\bECC\b',
                  r'\bME[0-9]', r'\bVA[0-9]', r'\bVF[0-9]', r'\bMIGO\b', r'\bSE[0-9]',
                  r'\b采购信息记录\b', r'\b采购订单\b', r'\b采购发票\b', r'\b物料凭证\b'],
         'xml': [r'\bXML\b', r'\bxmlns\b', r'\bWSDL\b', r'\bSOAP\b', r'\bXSD\b', r'\bSchema\b',
@@ -61,13 +130,13 @@ def detect_code_blocks(md_content: str) -> str:
     # 代码起始模式（按领域）
     code_starters = {
         'abap': [
-            r'^REPORT\s+[zy]', r'^DATA:?\s*$', r'^DATA\s+\w+', r'^TYPES:?\s*$',
+            r'^REPORT\s+[zy]', r'^DATA:?\s*$', r'^DATA:\s*\w+', r'^DATA\s+\w+', r'^TYPES:?\s*$',
             r'^TYPES\s+BEGIN\s+OF', r'^CALL\s+FUNCTION\s+', r'^WRITE:\s*/',
             r'^WRITE\s+/', r'^PARAMETERS\s*:', r'^SELECT-OPTIONS\s*:',
             r'^START-OF-SELECTION', r'^END-OF-SELECTION', r'^FORM\s+\w+',
             r'^MODULE\s+\w+', r'^CLASS\s+\w+\s+DEFINITION',
-            r'^lv_\w+', r'^ls_\w+', r'^lt_\w+', r'^gv_\w+', r'^gs_\w+', r'^gt_\w+',
-            r'^" ',
+            r'^lv_?\w+', r'^ls_?\w+', r'^lt_?\w+', r'^gv_?\w+', r'^gs_?\w+', r'^gt_?\w+',
+            r'^&-{5,}', r'^\*&', r'^\*\s', r'^" ',
         ],
         'xml': [
             r'^<\?xml', r'^<\w+:definitions', r'^<\w+:types', r'^<\w+:message',
@@ -92,6 +161,15 @@ def detect_code_blocks(md_content: str) -> str:
     in_code_block = False
     current_domain = None  # 当前检测到的领域
 
+    # 预扫描：统计全文领域关键词出现次数，找到主导领域
+    domain_scores = {d: 0 for d in domain_keywords}
+    for line in lines:
+        for domain, patterns in domain_keywords.items():
+            for pattern in patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    domain_scores[domain] += 1
+    dominant_domain = max(domain_scores, key=domain_scores.get) if any(domain_scores.values()) else None
+
     def is_table_line(line):
         stripped = line.strip()
         return stripped.startswith('|') or stripped.startswith('---')
@@ -113,6 +191,13 @@ def detect_code_blocks(md_content: str) -> str:
                 return True
         return False
 
+    def is_any_code_start(line):
+        """判断是否为任意领域的代码起始"""
+        for domain in code_starters:
+            if is_code_start(line, domain):
+                return domain
+        return None
+
     for line in lines:
         # 已在代码块中
         if in_code_block:
@@ -126,15 +211,36 @@ def detect_code_blocks(md_content: str) -> str:
 
         # 未在代码块中
 
+        # 0. 检查表格行中是否嵌入了代码
+        if line.strip().startswith('|'):
+            use_domain = current_domain or dominant_domain or 'abap'
+            extracted, code_lines, new_line = extract_code_from_table_line(line, use_domain)
+            if extracted:
+                result_lines.append(new_line)
+                result_lines.append(f'```{use_domain}')
+                result_lines.extend(code_lines)
+                result_lines.append('```')
+                current_domain = use_domain
+                continue
+
         # 1. 先检测段落中的领域关键词
         detected = detect_domain_from_text(line)
         if detected:
             current_domain = detected
 
-        # 2. 再检测是否为代码起始
+        # 2. 检测是否为代码起始（先用当前领域检测，再用任意领域检测）
+        code_domain = None
         if current_domain and is_code_start(line, current_domain):
+            code_domain = current_domain
+        else:
+            code_domain = is_any_code_start(line)
+            # 如果检测到代码起始但没有领域上下文，用预扫描的主导领域
+            if code_domain and not current_domain:
+                current_domain = dominant_domain or code_domain
+
+        if code_domain:
             in_code_block = True
-            result_lines.append(f'```{current_domain}')
+            result_lines.append(f'```{code_domain}')
             result_lines.append(line)
         else:
             result_lines.append(line)
