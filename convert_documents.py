@@ -48,7 +48,7 @@ def detect_code_blocks(md_content: str) -> str:
 
     # 领域关键词 → 语言标签
     domain_keywords = {
-        'abap': [r'\bABAP\b', r'\bSAP\b', r'\bBAPI\b', r'\bRFC\b', r'\bS/4HANA\b', r'\bECC\b',
+        'abap': [r'\bABAP\b', r'\bSAP\b', r'BAPI(?:[_\b])', r'RFC(?:[_\b])', r'\bS/4HANA\b', r'\bECC\b',
                  r'\bME[0-9]', r'\bVA[0-9]', r'\bVF[0-9]', r'\bMIGO\b', r'\bSE[0-9]',
                  r'\b采购信息记录\b', r'\b采购订单\b', r'\b采购发票\b', r'\b物料凭证\b'],
         'xml': [r'\bXML\b', r'\bxmlns\b', r'\bWSDL\b', r'\bSOAP\b', r'\bXSD\b', r'\bSchema\b',
@@ -61,11 +61,13 @@ def detect_code_blocks(md_content: str) -> str:
     # 代码起始模式（按领域）
     code_starters = {
         'abap': [
-            r'^REPORT\s+[zy]', r'^DATA:', r'^DATA\s+\w+', r'^TYPES:',
+            r'^REPORT\s+[zy]', r'^DATA:?\s*$', r'^DATA\s+\w+', r'^TYPES:?\s*$',
             r'^TYPES\s+BEGIN\s+OF', r'^CALL\s+FUNCTION\s+', r'^WRITE:\s*/',
             r'^WRITE\s+/', r'^PARAMETERS\s*:', r'^SELECT-OPTIONS\s*:',
             r'^START-OF-SELECTION', r'^END-OF-SELECTION', r'^FORM\s+\w+',
             r'^MODULE\s+\w+', r'^CLASS\s+\w+\s+DEFINITION',
+            r'^lv_\w+', r'^ls_\w+', r'^lt_\w+', r'^gv_\w+', r'^gs_\w+', r'^gt_\w+',
+            r'^" ',
         ],
         'xml': [
             r'^<\?xml', r'^<\w+:definitions', r'^<\w+:types', r'^<\w+:message',
